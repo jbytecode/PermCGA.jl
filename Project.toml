@@ -1,0 +1,8 @@
+name = "PermCGA"
+uuid = "d9e37423-c191-4bd5-b4db-26c71e8a051b"
+authors = ["jbytecode <mhsatman@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Memoize = "c03570c3-d221-55d1-a50c-7939bbd78826"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
