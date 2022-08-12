@@ -46,3 +46,43 @@ end
     @test result[:cost] == 0.0
 
 end
+
+
+
+@testset "Traveling Salesman with 5x5" begin 
+    
+    datapoints = 
+    [
+        1  1;
+        10 1;
+        10 20;
+        1 20;
+    ]
+
+    euclidean(u, v) = (u .- v) .|> (a -> a * a) |> sum |> sqrt
+
+    distances = zeros(4, 4)
+    for i in 1:4
+        for j in 1:4
+            distances[i, j] = euclidean(datapoints[i, :], datapoints[j, :])
+        end
+    end 
+
+    function cost(x)
+        y = copy(x)
+        push!(y, first(x))
+        mysum = 0.0
+        for i in 1:3
+            mysum = mysum + distances[y[i], y[i + 1]]
+        end
+        return mysum 
+    end
+
+    result = permcga(cost, 4, 500)
+
+    @test (result[:solution] == [1, 2, 3, 4] || result[:solution] == [4, 3, 2, 1] || result[:solution] == [3, 4, 2, 1] || result[:solution] == [2, 1, 4, 3])
+    @test result[:valid] 
+
+    result |> display 
+
+end 
