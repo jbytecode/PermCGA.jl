@@ -3,7 +3,6 @@ module PermCGA
 using StatsBase
 using Memoize
 
-
 export permcga
 
 struct PermutationProbs
@@ -16,7 +15,6 @@ abstract type AbstractMonitor end
 struct DefaultMonitor <: AbstractMonitor
     probs               :: PermutationProbs 
     maxiteration        :: Int 
-    steps               :: Int
     currentiteration    :: Int
     bestcost            :: Float64
     bestperm            :: Vector        
@@ -29,11 +27,9 @@ function PermutationProbs(mat::Matrix{Float64})
 end
 
 function defaultmonitorfunction(monitor::T) where {T <: AbstractMonitor}
-    if monitor.currentiteration % monitor.steps == 0
     @info """
         Iteration $(monitor.currentiteration) of $(monitor.maxiteration), Cost: $(monitor.bestcost)
     """
-    end 
 end
 
 initialscorematrix(n::Int)::PermutationProbs = PermutationProbs(ones(Float64, (n, n)))
@@ -43,7 +39,8 @@ function sampleperm(pm::PermutationProbs)::Vector{Int}
     cpm = copy(pm.mat)
     items = collect(1:n)
     result = Int[]
-    for i = 1:n
+    lucky :: Int64 = 0
+    for i in 1:n
         lucky = sample(items, Weights(cpm[:, i]))
         push!(result, lucky)
         cpm[lucky, :] .= 0.0
@@ -59,6 +56,15 @@ function isvalid(v::Vector{Int})::Bool
     return (v |> unique |> length) == length(v)
 end
 
+function mutate!(sm::PermutationProbs, winner, loser, mutation)
+    n = sm.n
+    for p = 1:n
+        #if winner[p] != loser[p]
+            sm.mat[winner[p], p] += mutation
+        #end
+    end
+end
+
 function permcga(
     costfn::Function, 
     n::Int, iterations::Int; 
@@ -72,17 +78,27 @@ function permcga(
     mutation = 0.0
     fiterations = Float64(iterations)
     
-    bestsolution = sampleperm(sm)
-    bestcost = costfn(bestsolution)
+    bestsolution    :: Vector{Int} = sampleperm(sm)
+    bestcost        :: Float64 = costfn(bestsolution)
+    cand1           :: Vector{Int} = []
+    cand2           :: Vector{Int} = []
+    winner          :: Vector{Int} = []
+    loser           :: Vector{Int} = []
+    cost1           :: Float64 = 0.0
+    cost2           :: Float64 = 0.0
+
+
 
     for i = 1:iterations
 
-        mutation = n * (i / fiterations)
+        mutation = Float64(n) * (i / fiterations)
 
         cand1 = sampleperm(sm)
         cand2 = sampleperm(sm)
         cost1 = memoizedcost(cand1)
         cost2 = memoizedcost(cand2)
+
+
         winner = cand1
         loser = cand2
         currentmincost = cost1
@@ -92,22 +108,18 @@ function permcga(
             currentmincost = cost2
         end
 
-        for p = 1:n
-            if winner[p] != loser[p]
-                sm.mat[winner[p], p] += mutation
-            end
-        end
+        mutate!(sm, winner, loser, mutation)
 
         if currentmincost < bestcost
             bestcost = currentmincost
             bestsolution = winner
+            if(!isnothing(monitorfunction))
+                monitorfunction(DefaultMonitor(sm, iterations, i, bestcost, bestsolution))
+            end
         end
 
-        if(!isnothing(monitorfunction))
-            monitorfunction(DefaultMonitor(sm, iterations, 100, i, bestcost, bestsolution))
-        end
+    end # end of iterations 
         
-    end
 
     # Sample section 
     for i = 1:iterations
@@ -119,7 +131,7 @@ function permcga(
                 bestcost = cost
                 bestsolution = solution
                 if(!isnothing(monitorfunction))
-                     monitorfunction(DefaultMonitor(sm, iterations, 100, iterations, bestcost, bestsolution))
+                     monitorfunction(DefaultMonitor(sm, i, iterations, bestcost, bestsolution))
                 end
             end
         end
