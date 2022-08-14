@@ -11,9 +11,29 @@ struct PermutationProbs
     n::Int
 end
 
+abstract type AbstractMonitor end 
+
+struct DefaultMonitor <: AbstractMonitor
+    probs               :: PermutationProbs 
+    maxiteration        :: Int 
+    steps               :: Int
+    currentiteration    :: Int
+    bestcost            :: Float64
+    bestperm            :: Vector        
+end 
+
+
 function PermutationProbs(mat::Matrix{Float64})
     n, _ = size(mat)
     return PermutationProbs(mat, n)
+end
+
+function defaultmonitorfunction(monitor::T) where {T <: AbstractMonitor}
+    if monitor.currentiteration % monitor.steps == 0
+    @info """
+        Iteration $(monitor.currentiteration) of $(monitor.maxiteration), Cost: $(monitor.bestcost)
+    """
+    end 
 end
 
 initialscorematrix(n::Int)::PermutationProbs = PermutationProbs(ones(Float64, (n, n)))
@@ -39,7 +59,10 @@ function isvalid(v::Vector{Int})::Bool
     return (v |> unique |> length) == length(v)
 end
 
-function permcga(costfn::Function, n::Int, iterations::Int)
+function permcga(
+    costfn::Function, 
+    n::Int, iterations::Int; 
+    monitorfunction::Union{Function, Nothing} = defaultmonitorfunction)
 
     @memoize function memoizedcost(x)
         return costfn(x)
@@ -48,6 +71,9 @@ function permcga(costfn::Function, n::Int, iterations::Int)
     sm = initialscorematrix(n)
     mutation = 0.0
     fiterations = Float64(iterations)
+    
+    bestsolution = sampleperm(sm)
+    bestcost = costfn(bestsolution)
 
     for i = 1:iterations
 
@@ -59,9 +85,11 @@ function permcga(costfn::Function, n::Int, iterations::Int)
         cost2 = memoizedcost(cand2)
         winner = cand1
         loser = cand2
+        currentmincost = cost1
         if cost2 < cost1
             winner = cand2
             loser = cand1
+            currentmincost = cost2
         end
 
         for p = 1:n
@@ -70,12 +98,18 @@ function permcga(costfn::Function, n::Int, iterations::Int)
             end
         end
 
+        if currentmincost < bestcost
+            bestcost = currentmincost
+            bestsolution = winner
+        end
+
+        if(!isnothing(monitorfunction))
+            monitorfunction(DefaultMonitor(sm, iterations, 100, i, bestcost, bestsolution))
+        end
+        
     end
 
     # Sample section 
-    bestsolution = sampleperm(sm)
-    bestcost = costfn(bestsolution)
-
     for i = 1:iterations
         solution = sampleperm(sm)
         cost = costfn(solution)
@@ -84,6 +118,9 @@ function permcga(costfn::Function, n::Int, iterations::Int)
             if cost < bestcost
                 bestcost = cost
                 bestsolution = solution
+                if(!isnothing(monitorfunction))
+                     monitorfunction(DefaultMonitor(sm, iterations, 100, iterations, bestcost, bestsolution))
+                end
             end
         end
 
