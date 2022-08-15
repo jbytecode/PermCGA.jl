@@ -42,7 +42,7 @@ end
 
 
 
-result = permcga(costfn, n, 10000)
+result = permcga(costfn, n, 20000)
 sol = copy(result[:solution])
 display(result)
 push!(sol, sol[1])

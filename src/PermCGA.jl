@@ -59,8 +59,7 @@ function isvalid(v::Vector{Int})::Bool
 end
 
 function mutate!(sm::PermutationProbs, winner, mutation)
-    n = sm.n
-    for p = 1:n
+    for p = 1:sm.n
         #if winner[p] != loser[p]
         sm.mat[winner[p], p] += mutation
         #end
@@ -79,10 +78,13 @@ end
 
 # Source:
 # https://www.redalyc.org/pdf/2652/265219618002.pdf
-function ocx(p1, p2)
+function ocx(p1, p2; c1=0, c2 =0)
     n = length(p1)
-    c1 = 3
-    c2 = 6
+    #c1 = 3
+    #c2 = 6
+    if c1 == 0 || c2 == 0
+        c1, c2 = sort(sample(2:(n-1), 2, replace = false))
+    end
 
     part11 = p1[1:(c1-1)]
     part12 = p1[c1:(c2-1)]
@@ -108,17 +110,12 @@ function permcga(
     costfn::Function,
     n::Int,
     iterations::Int;
-    monitorfunction::Union{Function,Nothing} = defaultmonitorfunction,
-    ntournaments::Int = 10,
-    memoizefunctions :: Bool = true
+    monitorfunction::Union{Function,Nothing} = defaultmonitorfunction
 )
-    if memoizefunctions
-        @memoize memoizedcostfn(x) = costfn(x)
-        @warn "Memoized function will be used."
-    else
-        @warn "Normal cost function will be used (no memoization)."
-        memoizedcostfn(x) = costfn(x)
-    end
+   
+    @memoize memoizedcostfn(x) = costfn(x)
+    @warn "Memoized function will be used."
+    
 
     sm            :: PermutationProbs = initialscorematrix(n)
     mutation      :: Float64 = 0.0
@@ -131,15 +128,19 @@ function permcga(
     for i = 1:iterations
 
         mutation = floatn * (1.0 - i / fiterations)
+        cands = Matrix{Int}(undef, (6, n))
+        cands[1,:] = sampleperm(sm)
+        cands[2,:] = sampleperm(sm)
+        off1, off2 = ocx(cands[1,:], cands[2,:])
+        cands[3,:] = off1
+        cands[4,:] = off2
+        cands[5,:] = flip(cands[1,:])
+        cands[6,:] = flip(cands[2,:])
 
-        cands_part1 = map(a -> sampleperm(sm), 1:ntournaments)
-        cands_part2 = map(a -> flip(a), cands_part1)
-        cands = vcat(cands_part1, cands_part2)
-        costs = map(memoizedcostfn, cands)
-
+        costs = map(memoizedcostfn, eachrow(cands))
         currentmincost, mincostindex = findmin(costs)
-
-        winner = cands[mincostindex]
+        
+        winner = cands[mincostindex,:]
 
         mutate!(sm, winner, mutation)
 

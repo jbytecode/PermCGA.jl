@@ -19,7 +19,7 @@ end
     p1 = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     p2 = [8, 5, 7, 1, 2, 4, 9, 3, 6]
     
-    result = PermCGA.ocx(p1, p2)
+    result = PermCGA.ocx(p1, p2, c1 = 3, c2 = 6)
     
     @test length(result) == 2
     @test result[1] == [4, 5, 7, 1, 2, 6, 8, 9, 3]
