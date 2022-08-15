@@ -77,7 +77,8 @@ function flip(aperm::Vector{Int})::Vector{Int}
     return result
 end
 
-
+# Source:
+# https://www.redalyc.org/pdf/2652/265219618002.pdf
 function ocx(p1, p2)
     n = length(p1)
     c1 = 3
