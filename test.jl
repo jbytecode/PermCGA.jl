@@ -42,7 +42,7 @@ end
 
 
 
-result = permcga(costfn, n, 20000)
+result = permcga(costfn, n, 50000)
 sol = copy(result[:solution])
 display(result)
 push!(sol, sol[1])
@@ -51,3 +51,4 @@ x = pts[sol, 1]
 y = pts[sol, 2]
 Plots.plot!(x, y)
 
+display(result[:scorematrix])
